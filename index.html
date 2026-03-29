@@ -1,0 +1,2244 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>車輛借用管理系統</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3347;
+    --accent: #4f8cff;
+    --accent2: #00e5c0;
+    --danger: #ff5c5c;
+    --warn: #ffb347;
+    --text: #e8eaf2;
+    --text2: #8b90a8;
+    --text3: #555a72;
+    --green: #36d68a;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* ── Layout ── */
+  .app { display: flex; min-height: 100vh; }
+
+  .sidebar {
+    width: 260px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 100;
+  }
+
+  .sidebar-logo {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo .brand {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--text3);
+    text-transform: uppercase;
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 4px;
+  }
+  .sidebar-logo .title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .nav { flex: 1; padding: 16px 12px; overflow-y: auto; }
+  .nav-section-label {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--text3);
+    text-transform: uppercase;
+    font-family: 'DM Mono', monospace;
+    padding: 0 8px;
+    margin: 16px 0 6px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    color: var(--text2);
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.15s;
+    margin-bottom: 2px;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: rgba(79,140,255,0.12); color: var(--accent); }
+  .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    padding: 1px 6px;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+
+  .main {
+    margin-left: 260px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .topbar {
+    height: 60px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 28px;
+    gap: 16px;
+    background: var(--bg);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .topbar h1 { font-size: 16px; font-weight: 600; flex: 1; }
+  .topbar .role-badge {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--text3);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+  #sync-indicator {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: var(--green);
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface);
+  }
+
+  .content { padding: 28px; flex: 1; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .card-title { font-size: 14px; font-weight: 600; }
+  .card-subtitle { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  /* ── Form ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-grid.single { grid-template-columns: 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.span2 { grid-column: span 2; }
+  label { font-size: 12px; font-weight: 500; color: var(--text2); }
+  label .req { color: var(--accent); margin-left: 2px; }
+
+  input, select, textarea {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 13px;
+    padding: 9px 12px;
+    transition: border-color 0.15s;
+    outline: none;
+    width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 80px; }
+  select option { background: var(--surface); }
+
+  /* ── Signature pad ── */
+  .sig-wrap {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    position: relative;
+    overflow: hidden;
+  }
+  .sig-wrap canvas {
+    display: block;
+    width: 100%;
+    height: 120px;
+    cursor: crosshair;
+    touch-action: none;
+  }
+  .sig-hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    color: var(--text3);
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .sig-controls {
+    display: flex;
+    justify-content: flex-end;
+    padding: 6px 8px;
+    border-top: 1px solid var(--border);
+  }
+  .sig-clear {
+    font-size: 11px;
+    color: var(--text3);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color 0.15s;
+  }
+  .sig-clear:hover { color: var(--danger); }
+
+  /* ── Photo upload ── */
+  .photo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .photo-slot {
+    aspect-ratio: 4/3;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  .photo-slot:hover { border-color: var(--accent); background: rgba(79,140,255,0.04); }
+  .photo-slot img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0; left: 0;
+  }
+  .photo-slot .plus { font-size: 20px; color: var(--text3); margin-bottom: 4px; }
+  .photo-slot .photo-label { font-size: 10px; color: var(--text3); font-family: 'DM Mono', monospace; }
+  .photo-slot input[type=file] { display: none; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 18px;
+    border-radius: var(--radius-sm);
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #6b9fff; }
+  .btn-success { background: var(--green); color: #0f1117; }
+  .btn-success:hover { background: #50e89e; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-outline {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text2);
+  }
+  .btn-outline:hover { border-color: var(--text2); color: var(--text); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+  .btn-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+  /* ── Status badge ── */
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+  .status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
+  .status-pending { background: rgba(255,179,71,0.12); color: var(--warn); }
+  .status-pending::before { background: var(--warn); }
+  .status-approved { background: rgba(54,214,138,0.12); color: var(--green); }
+  .status-approved::before { background: var(--green); }
+  .status-active { background: rgba(79,140,255,0.12); color: var(--accent); }
+  .status-active::before { background: var(--accent); }
+  .status-closed { background: rgba(139,144,168,0.12); color: var(--text2); }
+  .status-closed::before { background: var(--text2); }
+  .status-rejected { background: rgba(255,92,92,0.12); color: var(--danger); }
+  .status-rejected::before { background: var(--danger); }
+
+  /* ── Table ── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: var(--text3);
+    font-family: 'DM Mono', monospace;
+    text-transform: uppercase;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+  }
+  td {
+    padding: 12px 12px;
+    border-bottom: 1px solid rgba(46,51,71,0.5);
+    font-size: 13px;
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(79,140,255,0.03); }
+  .mono { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text2); }
+
+  /* ── Step indicator ── */
+  .steps {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 28px;
+  }
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+  }
+  .step-dot {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text3);
+  }
+  .step.done .step-dot { background: var(--green); border-color: var(--green); color: #0f1117; }
+  .step.active .step-dot { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .step-label { font-size: 12px; color: var(--text3); }
+  .step.active .step-label { color: var(--text); font-weight: 500; }
+  .step.done .step-label { color: var(--green); }
+  .step-line { flex: 1; height: 1px; background: var(--border); margin: 0 8px; }
+  .step-line.done { background: var(--green); }
+
+  /* ── Stats ── */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+  .stat-label { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .stat-value { font-size: 28px; font-weight: 700; color: var(--text); }
+  .stat-sub { font-size: 11px; color: var(--text2); margin-top: 4px; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    font-size: 13px;
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    animation: slideUp 0.2s ease;
+    max-width: 320px;
+  }
+  .toast.show { display: flex; }
+  @keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .modal-title { font-size: 15px; font-weight: 600; }
+  .modal-close {
+    background: none; border: none; color: var(--text3);
+    cursor: pointer; font-size: 18px; line-height: 1;
+    padding: 2px;
+  }
+  .modal-close:hover { color: var(--text); }
+  .modal-body { padding: 24px; }
+  .modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+
+  /* ── Detail row ── */
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .detail-item { display: flex; flex-direction: column; gap: 4px; }
+  .detail-key { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; }
+  .detail-val { font-size: 13px; color: var(--text); }
+
+  /* ── Divider ── */
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* ── Role switcher (demo) ── */
+  .role-switcher {
+    padding: 16px 12px;
+    border-top: 1px solid var(--border);
+  }
+  .role-switcher label { font-size: 11px; color: var(--text3); display: block; margin-bottom: 6px; }
+  .role-switcher select {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .sidebar { width: 100%; position: static; height: auto; flex-direction: row; flex-wrap: wrap; }
+    .main { margin-left: 0; }
+    .form-grid { grid-template-columns: 1fr; }
+    .form-group.span2 { grid-column: span 1; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .photo-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="brand">Fleet Management</div>
+      <div class="title">車輛借用系統</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section-label">主選單</div>
+      <button class="nav-item active" onclick="showPage('dashboard')">
+        <span class="icon">⬛</span> 總覽
+      </button>
+      <button class="nav-item" onclick="showPage('apply')">
+        <span class="icon">＋</span> 新增借用申請
+      </button>
+      <button class="nav-item" onclick="showPage('list')">
+        <span class="icon">≡</span> 借用紀錄
+        <span class="nav-badge" id="pending-badge">0</span>
+      </button>
+      <button class="nav-item" onclick="showPage('vehicles')">
+        <span class="icon">🚛</span> 車輛管理
+      </button>
+    </nav>
+    <div class="role-switcher">
+      <label>🎭 模擬角色（Demo 用）</label>
+      <select id="role-select" onchange="switchRole(this.value)">
+        <option value="admin">行政人員（你）</option>
+        <option value="applicant">申請人</option>
+        <option value="manager">審核主管</option>
+      </select>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="topbar">
+      <h1 id="page-title">總覽</h1>
+      <span id="sync-indicator" style="display:none">已同步</span>
+    <span class="role-badge" id="role-label">行政人員</span>
+    </div>
+    <div class="content" id="content"></div>
+  </main>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// ── 設定區（填入你的金鑰）──
+// ══════════════════════════════════════════
+const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbxm4azc04Z4FHwLW-BjUUlCL0t3ZCinTgGepmyZ4tcSB9J0zMAW9SFlUGOR_nLYbeA/exec';
+const EMAILJS_SERVICE_ID  = '';  // 第二階段再填
+const EMAILJS_TEMPLATE_APPLY    = '';
+const EMAILJS_TEMPLATE_APPROVED = '';
+const EMAILJS_TEMPLATE_REJECT   = '';
+const EMAILJS_TEMPLATE_RETURNED = '';
+const EMAILJS_PUBLIC_KEY  = '';
+const SYSTEM_URL = window.location.href; // 部署後自動抓取網址
+
+// ══════════════════════════════════════════
+// ── Google Sheets API 函數 ──
+// ══════════════════════════════════════════
+
+// 同步狀態指示
+let syncStatus = 'idle'; // idle | syncing | error
+function setSyncStatus(s) {
+  syncStatus = s;
+  const el = document.getElementById('sync-indicator');
+  if (!el) return;
+  const map = {
+    idle:    { text: '已同步', color: 'var(--green)' },
+    syncing: { text: '同步中…', color: 'var(--warn)' },
+    error:   { text: '離線模式', color: 'var(--danger)' },
+  };
+  el.textContent = map[s].text;
+  el.style.color = map[s].color;
+}
+
+async function sheetsGet(sheet) {
+  if (!SHEETS_API_URL) return null;
+  try {
+    const res = await fetch(`${SHEETS_API_URL}?sheet=${sheet}`);
+    const json = await res.json();
+    return json.ok ? json.data : null;
+  } catch(e) { return null; }
+}
+
+async function sheetsUpsert(sheet, record) {
+  if (!SHEETS_API_URL) return;
+  // 排除照片欄位，只送文字資料
+  const slim = Object.assign({}, record);
+  ['outPhotos','inPhotos','applySig','outSig','returnSig','managerSig'].forEach(f => delete slim[f]);
+  try {
+    await fetch(SHEETS_API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'upsert', sheet, record: slim }),
+    });
+  } catch(e) { console.warn('Sheets upsert failed:', e); }
+}
+
+async function sheetsDelete(sheet, record) {
+  if (!SHEETS_API_URL) return;
+  try {
+    await fetch(SHEETS_API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'delete', sheet, record }),
+    });
+  } catch(e) { console.warn('Sheets delete failed:', e); }
+}
+
+// 從 Sheets 載入資料，合併進 localStorage（本地優先，Sheets 補充）
+async function syncFromSheets() {
+  if (!SHEETS_API_URL) return;
+  setSyncStatus('syncing');
+  try {
+    const [remoteRecords, remoteVehicles] = await Promise.all([
+      sheetsGet('records'),
+      sheetsGet('vehicles'),
+    ]);
+
+    if (remoteRecords) {
+      // 合併：以 Sheets 為主，本地照片資料保留
+      const localMap = {};
+      records.forEach(r => localMap[r.id] = r);
+      records = remoteRecords.map(r => {
+        const local = localMap[r.id] || {};
+        // 文字欄位用 Sheets，照片/簽名用本地
+        return Object.assign({}, r, {
+          outPhotos:  local.outPhotos  || [],
+          inPhotos:   local.inPhotos   || [],
+          applySig:   local.applySig   || null,
+          outSig:     local.outSig     || null,
+          returnSig:  local.returnSig  || null,
+          managerSig: local.managerSig || null,
+        });
+      });
+      saveRecordsLocal();
+    }
+
+    if (remoteVehicles && remoteVehicles.length > 0) {
+      vehicles = remoteVehicles;
+      localStorage.setItem('vl_vehicles', JSON.stringify(vehicles));
+    }
+
+    setSyncStatus('idle');
+  } catch(e) {
+    setSyncStatus('error');
+  }
+}
+
+// ── State ──
+let currentRole = 'admin';
+let records = [];
+
+// ── 車輛清單 ──
+let vehicles = JSON.parse(localStorage.getItem('vl_vehicles') || 'null') || [
+  { id:'V001', typeCode:'EV-T01', plate:'ABC-1234', bodyCode:'BODY-2024-001', motorCode:'MTR-2024-001', status:'idle', note:'' },
+  { id:'V002', typeCode:'EV-T01', plate:'ABC-5678', bodyCode:'BODY-2024-002', motorCode:'MTR-2024-002', status:'idle', note:'' },
+  { id:'V003', typeCode:'EV-T02', plate:'XYZ-9999', bodyCode:'BODY-2024-003', motorCode:'MTR-2024-003', status:'idle', note:'' },
+];
+function saveVehicles() { localStorage.setItem('vl_vehicles', JSON.stringify(vehicles)); }
+
+function downloadCSVTemplate() {
+  const header = 'typeCode,plate,bodyCode,motorCode,note';
+  const sample = [
+    'EV-T01,ABC-0001,BODY-2024-010,MTR-2024-010,',
+    'EV-T02,XYZ-0002,BODY-2024-011,MTR-2024-011,備用車',
+  ].join('\n');
+  const blob = new Blob([header + '\n' + sample], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'vehicle_import_template.csv';
+  a.click();
+}
+
+function importCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) { showToast('⚠️ CSV 格式錯誤，至少需要標題行與一筆資料'); return; }
+    const headers = lines[0].split(',').map(h => h.trim());
+    const required = ['typeCode','plate','bodyCode','motorCode'];
+    const missing = required.filter(f => !headers.includes(f));
+    if (missing.length) { showToast('⚠️ 缺少欄位：' + missing.join(', ')); return; }
+    let added = 0, skipped = 0;
+    lines.slice(1).forEach(line => {
+      const cols = line.split(',');
+      const row = {};
+      headers.forEach((h, i) => row[h] = (cols[i]||'').trim());
+      if (!row.typeCode || !row.plate || !row.bodyCode || !row.motorCode) { skipped++; return; }
+      if (vehicles.find(v => v.plate === row.plate)) { skipped++; return; } // 車牌重複略過
+      vehicles.push({ id:'V'+String(Date.now()+added).slice(-6), typeCode:row.typeCode, plate:row.plate, bodyCode:row.bodyCode, motorCode:row.motorCode, status:'idle', note:row.note||'' });
+      added++;
+    });
+    localStorage.setItem('vl_vehicles', JSON.stringify(vehicles));
+    // 批次推送到 Sheets
+    if (SHEETS_API_URL) { setSyncStatus('syncing'); Promise.all(vehicles.slice(-added).map(v => sheetsUpsert('vehicles', v))).then(() => setSyncStatus('idle')); }
+    showToast(`✅ 匯入完成：新增 ${added} 筆，略過 ${skipped} 筆（重複或資料不完整）`);
+    showPage('vehicles');
+  };
+  reader.readAsText(file, 'utf-8');
+  input.value = '';
+}
+
+const roleLabels = { admin: '行政人員', applicant: '申請人', manager: '審核主管' };
+const statusMap = {
+  'pending_admin':   { label: '待行政審核', cls: 'status-pending' },
+  'pending_manager': { label: '待主管核准', cls: 'status-pending' },
+  'approved':        { label: '車輛使用中', cls: 'status-active' },
+  'returned':        { label: '已歸還待結案', cls: 'status-pending' },
+  'closed':          { label: '已結案', cls: 'status-closed' },
+  'rejected':        { label: '已退回', cls: 'status-rejected' },
+};
+
+const PHOTO_FIELDS = ['outPhotos','inPhotos','applySig','outSig','returnSig','managerSig'];
+
+// 本地儲存（含照片）
+function saveRecordsLocal() {
+  try {
+    const slim = records.map(r => {
+      const copy = Object.assign({}, r);
+      PHOTO_FIELDS.forEach(f => delete copy[f]);
+      return copy;
+    });
+    localStorage.setItem('vl_records', JSON.stringify(slim));
+    records.forEach(r => {
+      PHOTO_FIELDS.forEach(f => {
+        if (r[f]) {
+          try { sessionStorage.setItem(r.id + '_' + f, JSON.stringify(r[f])); }
+          catch(e) {}
+        }
+      });
+    });
+  } catch(e) { console.warn('saveRecordsLocal error:', e); }
+}
+
+// 儲存：本地 + 非同步推送到 Sheets
+function saveRecords(record) {
+  saveRecordsLocal();
+  if (record && SHEETS_API_URL) {
+    setSyncStatus('syncing');
+    sheetsUpsert('records', record).then(() => setSyncStatus('idle')).catch(() => setSyncStatus('error'));
+  }
+}
+
+// 儲存車輛：本地 + Sheets
+function saveVehiclesWithSync(vehicle) {
+  localStorage.setItem('vl_vehicles', JSON.stringify(vehicles));
+  if (vehicle && SHEETS_API_URL) {
+    setSyncStatus('syncing');
+    sheetsUpsert('vehicles', vehicle).then(() => setSyncStatus('idle')).catch(() => setSyncStatus('error'));
+  }
+}
+
+function loadRecords() {
+  try {
+    const slim = JSON.parse(localStorage.getItem('vl_records') || '[]');
+    return slim.map(r => {
+      PHOTO_FIELDS.forEach(f => {
+        try {
+          const val = sessionStorage.getItem(r.id + '_' + f);
+          if (val) r[f] = JSON.parse(val);
+        } catch(e) {}
+      });
+      return r;
+    });
+  } catch(e) { return []; }
+}
+
+function genId() {
+  const d = new Date();
+  const ymd = d.getFullYear().toString() +
+    String(d.getMonth()+1).padStart(2,'0') +
+    String(d.getDate()).padStart(2,'0');
+  const seq = String(records.length + 1).padStart(4,'0');
+  return `VL-${ymd}-${seq}`;
+}
+
+// ── Signature Pad ──
+function initSigPad(canvasId, hintId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const hint = document.getElementById(hintId);
+  let drawing = false;
+  let hasDrawn = false;
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    ctx.strokeStyle = '#e8eaf2';
+    ctx.lineWidth = 1.8;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+  }
+  resize();
+
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+  }
+
+  canvas.addEventListener('mousedown', e => { drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+  canvas.addEventListener('mousemove', e => {
+    if (!drawing) return;
+    if (!hasDrawn) { hasDrawn = true; if (hint) hint.style.opacity = '0'; }
+    const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke();
+  });
+  canvas.addEventListener('mouseup', () => { drawing = false; });
+  canvas.addEventListener('mouseleave', () => { drawing = false; });
+
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (!drawing) return;
+    if (!hasDrawn) { hasDrawn = true; if (hint) hint.style.opacity = '0'; }
+    const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke();
+  });
+  canvas.addEventListener('touchend', () => { drawing = false; });
+
+  return {
+    clear: () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      hasDrawn = false;
+      if (hint) hint.style.opacity = '1';
+    },
+    getDataURL: () => hasDrawn ? canvas.toDataURL() : null,
+    isEmpty: () => !hasDrawn
+  };
+}
+
+// ── Photo store（用獨立物件存照片，避免手機 slot._data 相容問題）──
+const photoStore = {};
+
+function initPhotoSlot(slotId, inputId, captureMode) {
+  const slot = document.getElementById(slotId);
+  const input = document.getElementById(inputId);
+  if (!slot || !input) return;
+  photoStore[inputId] = null;
+
+  const handleFile = file => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        photoStore[inputId] = ev.target.result;
+        const captureAttr = captureMode ? `capture="${captureMode}"` : '';
+        slot.innerHTML = `
+          <img src="${ev.target.result}" alt="已拍攝" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0">
+          <input type="file" id="${inputId}" accept="image/*" ${captureAttr} style="display:none">`;
+        const newInput = slot.querySelector('input');
+        newInput.addEventListener('change', e2 => handleFile(e2.target.files[0]));
+        slot.onclick = () => newInput.click();
+      } catch(err) { console.error('photo slot error', err); }
+    };
+    reader.onerror = () => console.error('FileReader error');
+    reader.readAsDataURL(file);
+  };
+
+  input.addEventListener('change', e => handleFile(e.target.files[0]));
+  slot.onclick = () => input.click();
+}
+
+function getPhotoData(inputId) { return photoStore[inputId] || null; }
+function clearPhotoStore(prefix) {
+  Object.keys(photoStore).forEach(k => { if (k.startsWith(prefix)) photoStore[k] = null; });
+}
+
+let sigPads = {};
+
+// ── Pages ──
+function showPage(page) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const pageMap = { dashboard: 0, apply: 1, list: 2, vehicles: 3 };
+  document.querySelectorAll('.nav-item')[pageMap[page]]?.classList.add('active');
+
+  const titles = { dashboard: '總覽', apply: '新增借用申請', list: '借用紀錄', vehicles: '車輛管理' };
+  document.getElementById('page-title').textContent = titles[page] || page;
+
+  const content = document.getElementById('content');
+  if (page === 'dashboard') content.innerHTML = renderDashboard();
+  else if (page === 'apply') { content.innerHTML = renderApply(); initApplyPage(); }
+  else if (page === 'list') content.innerHTML = renderList();
+  else if (page === 'vehicles') content.innerHTML = renderVehicles();
+
+  updateBadge();
+}
+
+function updateBadge() {
+  const pending = records.filter(r => r.status === 'pending_admin').length;
+  document.getElementById('pending-badge').textContent = pending;
+  document.getElementById('pending-badge').style.display = pending ? 'inline' : 'none';
+}
+
+// ── Dashboard ──
+function renderDashboard() {
+  const total = records.length;
+  const active = records.filter(r => r.status === 'approved').length;
+  const pending = records.filter(r => ['pending_admin','pending_manager'].includes(r.status)).length;
+  const closed = records.filter(r => r.status === 'closed').length;
+
+  const recent = [...records].reverse().slice(0, 5);
+
+  return `
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">總借用次數</div>
+      <div class="stat-value">${total}</div>
+      <div class="stat-sub">累計紀錄</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">使用中</div>
+      <div class="stat-value" style="color:var(--accent)">${active}</div>
+      <div class="stat-sub">車輛外出中</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">待審核</div>
+      <div class="stat-value" style="color:var(--warn)">${pending}</div>
+      <div class="stat-sub">需要處理</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">已結案</div>
+      <div class="stat-value" style="color:var(--green)">${closed}</div>
+      <div class="stat-sub">完成歸還</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">最近借用紀錄</div>
+        <div class="card-subtitle">最新 5 筆</div>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="showPage('list')">查看全部</button>
+    </div>
+    ${recent.length === 0 ? `<p style="color:var(--text3);text-align:center;padding:32px 0;font-size:13px;">尚無借用紀錄<br><br><button class="btn btn-primary" onclick="showPage('apply')">立即新增申請</button></p>` : `
+    <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>借用編號</th><th>申請人</th><th>借用事由</th><th>申請時間</th><th>狀態</th><th></th>
+      </tr></thead>
+      <tbody>
+        ${recent.map(r => `<tr>
+          <td class="mono">${r.id}</td>
+          <td>${r.applicantName}</td>
+          <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.purpose}</td>
+          <td class="mono">${r.createdAt}</td>
+          <td><span class="status ${statusMap[r.status]?.cls}">${statusMap[r.status]?.label}</span></td>
+          <td><button class="btn btn-outline btn-sm" onclick="openDetail('${r.id}')">詳情</button></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    </div>`}
+  </div>`;
+}
+
+// ── Apply page ──
+function renderApply() {
+  return `
+  <div class="steps">
+    <div class="step active">
+      <div class="step-dot">1</div>
+      <div class="step-label">基本資訊</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step">
+      <div class="step-dot">2</div>
+      <div class="step-label">出車點檢</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step">
+      <div class="step-dot">3</div>
+      <div class="step-label">主管核准</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step">
+      <div class="step-dot">4</div>
+      <div class="step-label">回車結案</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">借用申請</div>
+        <div class="card-subtitle">請填寫完整資訊後送出，行政人員將進行審核</div>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>申請人姓名 <span class="req">*</span></label>
+        <input id="f-name" placeholder="例：王小明">
+      </div>
+      <div class="form-group">
+        <label>申請人信箱 <span class="req">*</span></label>
+        <input id="f-email" type="email" placeholder="name@company.com">
+      </div>
+      <div class="form-group">
+        <label>預計借用日期 <span class="req">*</span></label>
+        <input id="f-date-start" type="date">
+      </div>
+      <div class="form-group">
+        <label>預計歸還日期 <span class="req">*</span></label>
+        <input id="f-date-end" type="date">
+      </div>
+      <div class="form-group span2">
+        <label>借用目的 / 事由 <span class="req">*</span></label>
+        <textarea id="f-purpose" placeholder="請簡述借用原因、目的地、任務內容…"></textarea>
+      </div>
+      <div class="form-group">
+        <label>目的地 / 行駛區域</label>
+        <input id="f-dest" placeholder="例：台中科學園區">
+      </div>
+      <div class="form-group">
+        <label>預計行駛里程（km）</label>
+        <input id="f-est-km" type="number" placeholder="0">
+      </div>
+      <div class="form-group span2">
+        <label>申請車型代碼（內部代碼）<span class="req">*</span></label>
+        <input id="f-vehicle-type" placeholder="請填寫欲借用的車型內部代碼，例：EV-T01">
+        <span style="font-size:11px;color:var(--text3);margin-top:2px">如不確定代碼，請洽行政人員確認</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px 18px;margin-bottom:4px">
+      <div style="font-size:12px;font-weight:600;color:var(--warn);margin-bottom:10px;letter-spacing:0.02em">📋 借用注意事項（簽名前請詳閱）</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.9">
+        本人已閱讀並同意遵守以下事項：<br>
+        1．<strong style="color:var(--text)">交通違規責任自負</strong>——借用期間發生任何交通違規，罰款與法律責任由申請人自行承擔，與公司無涉。<br>
+        2．<strong style="color:var(--text)">禁止在車內吸菸、嚼食檳榔</strong>——違者須負擔車輛清潔費用。<br>
+        3．<strong style="color:var(--text)">事故12小時內通報</strong>——如發生任何交通事故或車輛損傷，無論大小，務必於12小時內回報行政部，逾期通報視同隱匿。
+      </div>
+    </div>
+    <div class="form-group">
+      <label>申請人簽名 <span class="req">*</span>（簽名即表示同意以上注意事項）</label>
+      <div class="sig-wrap">
+        <canvas id="sig-apply" style="height:120px"></canvas>
+        <div class="sig-hint" id="sig-apply-hint">← 請在此處手寫簽名 →</div>
+        <div class="sig-controls">
+          <button class="sig-clear" onclick="sigPads['apply'].clear()">清除重簽</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="showPage('dashboard')">取消</button>
+      <button class="btn btn-primary" onclick="submitApply()">送出申請 →</button>
+    </div>
+  </div>`;
+}
+
+function initApplyPage() {
+  sigPads['apply'] = initSigPad('sig-apply', 'sig-apply-hint');
+}
+
+function submitApply() {
+  const name = document.getElementById('f-name').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const dateStart = document.getElementById('f-date-start').value;
+  const dateEnd = document.getElementById('f-date-end').value;
+  const purpose = document.getElementById('f-purpose').value.trim();
+  const vehicleType = document.getElementById('f-vehicle-type').value.trim();
+
+  if (!name || !email || !dateStart || !dateEnd || !purpose || !vehicleType) {
+    showToast('⚠️ 請填寫所有必填欄位（含車型代碼）');
+    return;
+  }
+  if (sigPads['apply']?.isEmpty()) {
+    showToast('⚠️ 請在申請人簽名欄簽名');
+    return;
+  }
+
+  const now = new Date();
+  const record = {
+    id: genId(),
+    status: 'pending_admin',
+    createdAt: now.toLocaleDateString('zh-TW') + ' ' + now.toLocaleTimeString('zh-TW', {hour:'2-digit',minute:'2-digit'}),
+    applicantName: name,
+    applicantEmail: email,
+    dateStart, dateEnd,
+    purpose,
+    destination: document.getElementById('f-dest').value,
+    estKm: document.getElementById('f-est-km').value,
+    vehicleType: vehicleType,
+    // 行政配車（Phase 2 審核時填入）
+    assignedBodyCode: '',
+    assignedMotorCode: '',
+    applySig: sigPads['apply'].getDataURL(),
+    // phase 2 fields
+    outMileage: '', outBattery: '', outPhotos: [],
+    managerName: '', managerSig: null, approvedAt: '',
+    inMileage: '', inBattery: '', inPhotos: [],
+    returnSig: null, closedAt: '',
+  };
+
+  records.push(record);
+  saveRecords(record);
+  showToast('✅ 申請已送出，系統已通知行政人員');
+  setTimeout(() => showPage('list'), 1000);
+}
+
+// ── Record list ──
+function renderList() {
+  const statusFilter = ['all', 'pending_admin', 'pending_manager', 'approved', 'returned', 'closed'];
+  return `
+  <div class="card" style="margin-bottom:16px;padding:16px 20px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:12px;color:var(--text3);margin-right:4px">篩選：</span>
+      <button class="btn btn-outline btn-sm" style="background:var(--accent);border-color:var(--accent);color:#fff" onclick="renderListFiltered('all')">全部</button>
+      <button class="btn btn-outline btn-sm" onclick="renderListFiltered('pending_admin')">待行政審核</button>
+      <button class="btn btn-outline btn-sm" onclick="renderListFiltered('pending_manager')">待主管核准</button>
+      <button class="btn btn-outline btn-sm" onclick="renderListFiltered('approved')">使用中</button>
+      <button class="btn btn-outline btn-sm" onclick="renderListFiltered('returned')">待結案</button>
+      <button class="btn btn-outline btn-sm" onclick="renderListFiltered('closed')">已結案</button>
+    </div>
+  </div>
+  <div id="list-body">${renderListTable('all')}</div>`;
+}
+
+function renderListFiltered(filter) {
+  document.getElementById('list-body').innerHTML = renderListTable(filter);
+}
+
+function renderListTable(filter) {
+  let filtered = filter === 'all' ? records : records.filter(r => r.status === filter);
+  filtered = [...filtered].reverse();
+  if (filtered.length === 0) return `<div class="card"><p style="color:var(--text3);text-align:center;padding:40px 0">目前沒有符合條件的紀錄</p></div>`;
+  return `<div class="card"><div class="table-wrap"><table>
+    <thead><tr>
+      <th>借用編號</th><th>申請人</th><th>借用目的</th><th>借用期間</th><th>申請時間</th><th>狀態</th><th>操作</th>
+    </tr></thead>
+    <tbody>
+      ${filtered.map(r => `<tr>
+        <td class="mono">${r.id}</td>
+        <td>${r.applicantName}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.purpose}</td>
+        <td class="mono" style="white-space:nowrap">${r.dateStart}<br>${r.dateEnd}</td>
+        <td class="mono">${r.createdAt}</td>
+        <td><span class="status ${statusMap[r.status]?.cls}">${statusMap[r.status]?.label}</span></td>
+        <td>
+          <button class="btn btn-outline btn-sm" onclick="openDetail('${r.id}')">詳情</button>
+          ${getActionBtn(r)}
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table></div></div>`;
+}
+
+function getActionBtn(r) {
+  if (r.status === 'pending_admin' && currentRole === 'admin')
+    return `<button class="btn btn-primary btn-sm" onclick="openAdminReview('${r.id}')">審核</button>`;
+  if (r.status === 'pending_manager' && currentRole === 'manager')
+    return `<button class="btn btn-success btn-sm" onclick="openManagerApprove('${r.id}')">核准</button>`;
+  if (r.status === 'approved' && currentRole === 'applicant') {
+    if (r.outMileage)
+      return `<button class="btn btn-outline btn-sm" onclick="openReturn('${r.id}')">回車歸還</button>`;
+    else
+      return `<button class="btn btn-primary btn-sm" onclick="openCheckout('${r.id}')">出車點檢</button>`;
+  }
+  if (r.status === 'approved' && currentRole === 'admin' && !r.outMileage)
+    return `<button class="btn btn-outline btn-sm" style="border-color:var(--warn);color:var(--warn)" onclick="openAdminCheckout('${r.id}')">代填出車</button>`;
+  if (r.status === 'approved' && currentRole === 'admin' && r.outMileage)
+    return `<button class="btn btn-outline btn-sm" style="border-color:var(--warn);color:var(--warn)" onclick="openAdminReturn('${r.id}')">代填回車</button>`;
+  if (r.status === 'returned' && currentRole === 'admin')
+    return `<button class="btn btn-success btn-sm" onclick="closeRecord('${r.id}')">結案歸檔</button>`;
+  if (r.status === 'rejected' && currentRole === 'applicant')
+    return `<button class="btn btn-primary btn-sm" onclick="openResubmit('${r.id}')">補件重送</button>`;
+  return '';
+}
+
+// ── Detail modal ──
+function openDetail(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+
+  const modal = document.getElementById('modal-content');
+  modal.innerHTML = `
+  <div class="modal-header">
+    <div>
+      <div class="modal-title">${r.id}</div>
+      <div style="margin-top:4px"><span class="status ${statusMap[r.status]?.cls}">${statusMap[r.status]?.label}</span></div>
+    </div>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="detail-grid">
+      <div class="detail-item"><div class="detail-key">申請人</div><div class="detail-val">${r.applicantName}</div></div>
+      <div class="detail-item"><div class="detail-key">信箱</div><div class="detail-val">${r.applicantEmail}</div></div>
+      <div class="detail-item"><div class="detail-key">借用日期</div><div class="detail-val">${r.dateStart}</div></div>
+      <div class="detail-item"><div class="detail-key">歸還日期</div><div class="detail-val">${r.dateEnd}</div></div>
+      <div class="detail-item" style="grid-column:span 2"><div class="detail-key">借用目的</div><div class="detail-val">${r.purpose}</div></div>
+      ${r.destination ? `<div class="detail-item"><div class="detail-key">目的地</div><div class="detail-val">${r.destination}</div></div>` : ''}
+      ${r.estKm ? `<div class="detail-item"><div class="detail-key">預計里程</div><div class="detail-val">${r.estKm} km</div></div>` : ''}
+      ${r.vehicleType ? `<div class="detail-item"><div class="detail-key">申請車型代碼</div><div class="detail-val" style="font-family:'DM Mono',monospace;color:var(--accent)">${r.vehicleType}</div></div>` : ''}
+      ${r.assignedPlate ? `<div class="detail-item"><div class="detail-key">實配車牌</div><div class="detail-val" style="font-family:'DM Mono',monospace;color:var(--accent2)">${r.assignedPlate}</div></div>` : ''}
+    </div>
+    ${r.assignedBodyCode ? `
+    <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px 16px;margin-top:12px">
+      <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">行政配車</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div><div style="font-size:11px;color:var(--text2);margin-bottom:2px">車身碼</div><div style="font-family:'DM Mono',monospace;color:var(--accent2)">${r.assignedBodyCode}</div></div>
+        <div><div style="font-size:11px;color:var(--text2);margin-bottom:2px">馬達碼</div><div style="font-family:'DM Mono',monospace;color:var(--accent2)">${r.assignedMotorCode}</div></div>
+      </div>
+    </div>` : ''}
+    ${r.applySig ? `<div class="divider"></div><div class="detail-key" style="margin-bottom:8px">申請人簽名</div><img src="${r.applySig}" style="border:1px solid var(--border);border-radius:8px;max-width:200px;background:var(--bg)">` : ''}
+    ${r.status === 'rejected' ? `
+    <div class="divider"></div>
+    <div style="background:rgba(255,92,92,0.08);border:1px solid rgba(255,92,92,0.2);border-radius:var(--radius-sm);padding:12px 16px">
+      <div style="font-size:11px;color:var(--danger);font-family:'DM Mono',monospace;margin-bottom:6px;text-transform:uppercase">已退回</div>
+      <div style="font-size:12px;color:var(--text2)">${r.rejectedAt || ''} ${r.rejectReason ? '— ' + r.rejectReason : ''}</div>
+    </div>` : ''}
+    ${r.resubmitHistory && r.resubmitHistory.length ? `
+    <div class="divider"></div>
+    <div style="font-size:12px;font-weight:600;margin-bottom:10px">補件歷史（共 ${r.resubmitHistory.length} 次）</div>
+    ${r.resubmitHistory.map(h => `
+      <div style="border-left:2px solid var(--border);padding:6px 12px;margin-bottom:8px;font-size:12px;color:var(--text2)">
+        <div style="color:var(--text);margin-bottom:2px">第 ${h.round} 次重送 · ${h.resubmitAt}</div>
+        ${h.rejectReason ? `<div>原退回原因：${h.rejectReason}</div>` : ''}
+        ${h.resubmitNote ? `<div>補件說明：${h.resubmitNote}</div>` : ''}
+      </div>`).join('')}` : ''}
+
+    ${r.outMileage ? `
+    <div class="divider"></div>
+    <div style="font-weight:600;margin-bottom:12px;font-size:13px">出車點檢 ${r.outByAdmin ? '<span style=\"font-size:10px;background:rgba(255,179,71,0.15);color:var(--warn);padding:2px 7px;border-radius:10px;font-weight:400;margin-left:6px\">行政代填</span>' : ''}</div>
+    ${r.outAdminNote ? `<div style="font-size:11px;color:var(--warn);margin-bottom:10px">備註：${r.outAdminNote}</div>` : ''}
+    <div class="detail-grid" style="margin-bottom:12px">
+      <div class="detail-item"><div class="detail-key">出車里程</div><div class="detail-val">${r.outMileage} km</div></div>
+      <div class="detail-item"><div class="detail-key">出車電量</div><div class="detail-val">${r.outBattery} %</div></div>
+    </div>
+    ${r.outPhotos && r.outPhotos.length ? `
+    <div class="detail-key" style="margin-bottom:8px">出車照片</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:4px">
+      ${r.outPhotos.map(src => `<div style="aspect-ratio:4/3;border-radius:6px;overflow:hidden;background:var(--bg)"><img src="${src}" style="width:100%;height:100%;object-fit:cover"></div>`).join('')}
+    </div>` : '<div style="font-size:11px;color:var(--text3);margin-bottom:4px">尚未上傳出車照片</div>'}
+    ` : ''}
+
+    ${r.managerName ? `
+    <div class="divider"></div>
+    <div style="font-weight:600;margin-bottom:12px;font-size:13px">主管核准</div>
+    <div class="detail-grid">
+      <div class="detail-item"><div class="detail-key">審核主管</div><div class="detail-val">${r.managerName}</div></div>
+      <div class="detail-item"><div class="detail-key">核准時間</div><div class="detail-val">${r.approvedAt}</div></div>
+    </div>
+    ${r.managerSig ? `<div style="margin-top:8px"><div class="detail-key" style="margin-bottom:6px">主管簽名</div><img src="${r.managerSig}" style="border:1px solid var(--border);border-radius:8px;max-width:200px;background:var(--bg)"></div>` : ''}` : ''}
+
+    ${r.inMileage ? `
+    <div class="divider"></div>
+    <div style="font-weight:600;margin-bottom:12px;font-size:13px">回車紀錄 ${r.inByAdmin ? '<span style=\"font-size:10px;background:rgba(255,179,71,0.15);color:var(--warn);padding:2px 7px;border-radius:10px;font-weight:400;margin-left:6px\">行政代填</span>' : ''}</div>
+    ${r.inAdminNote ? `<div style="font-size:11px;color:var(--warn);margin-bottom:10px">備註：${r.inAdminNote}</div>` : ''}
+    <div class="detail-grid">
+      <div class="detail-item"><div class="detail-key">回車里程</div><div class="detail-val">${r.inMileage} km</div></div>
+      <div class="detail-item"><div class="detail-key">回車電量</div><div class="detail-val">${r.inBattery} %</div></div>
+      <div class="detail-item"><div class="detail-key">使用里程</div><div class="detail-val">${r.inMileage - r.outMileage} km</div></div>
+      <div class="detail-item"><div class="detail-key">能耗</div><div class="detail-val">${((r.outBattery - r.inBattery) / Math.max(1, r.inMileage - r.outMileage) * 100).toFixed(2)} %/100km</div></div>
+    </div>
+    ${r.inPhotos && r.inPhotos.length ? `
+    <div class="detail-key" style="margin-top:12px;margin-bottom:8px">回車照片</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+      ${r.inPhotos.map(src => `<div style="aspect-ratio:4/3;border-radius:6px;overflow:hidden;background:var(--bg)"><img src="${src}" style="width:100%;height:100%;object-fit:cover"></div>`).join('')}
+    </div>` : '<div style="font-size:11px;color:var(--text3);margin-top:8px">尚未上傳回車照片</div>'}
+    ` : ''}
+  </div>
+  <div class="modal-footer">
+    ${getModalAction(r)}
+    <button class="btn btn-outline" onclick="closeModal()">關閉</button>
+  </div>`;
+
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function getModalAction(r) {
+  if (r.status === 'pending_admin' && currentRole === 'admin')
+    return `<button class="btn btn-primary" onclick="closeModal();openAdminReview('${r.id}')">進行審核</button>`;
+  if (r.status === 'pending_manager' && currentRole === 'manager')
+    return `<button class="btn btn-success" onclick="closeModal();openManagerApprove('${r.id}')">核准借用</button>`;
+  if (r.status === 'approved' && currentRole === 'applicant') {
+    if (r.outMileage)
+      return `<button class="btn btn-outline" onclick="closeModal();openReturn('${r.id}')">填寫回車點檢</button>`;
+    else
+      return `<button class="btn btn-primary" onclick="closeModal();openCheckout('${r.id}')">填寫出車點檢</button>`;
+  }
+  if (r.status === 'approved' && currentRole === 'admin' && !r.outMileage)
+    return `<button class="btn btn-outline" style="border-color:var(--warn);color:var(--warn)" onclick="closeModal();openAdminCheckout('${r.id}')">代填出車點檢</button>`;
+  if (r.status === 'approved' && currentRole === 'admin' && r.outMileage)
+    return `<button class="btn btn-outline" style="border-color:var(--warn);color:var(--warn)" onclick="closeModal();openAdminReturn('${r.id}')">代填回車點檢</button>`;
+  if (r.status === 'returned' && currentRole === 'admin')
+    return `<button class="btn btn-success" onclick="closeModal();closeRecord('${r.id}')">確認結案</button>`;
+  if (r.status === 'rejected' && currentRole === 'applicant')
+    return `<button class="btn btn-primary" onclick="closeModal();openResubmit('${r.id}')">補件重送</button>`;
+  if (r.status === 'closed' && currentRole === 'admin')
+    return `<button class="btn btn-outline" onclick="closeModal();openPDF('${r.id}')">🖨 列印憑證</button>`;
+  return '';
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+}
+
+// ── Admin review ──
+function openAdminReview(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  const modal = document.getElementById('modal-content');
+  modal.innerHTML = `
+  <div class="modal-header">
+    <div class="modal-title">行政審核 — ${r.id}</div>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="detail-grid" style="margin-bottom:16px">
+      <div class="detail-item"><div class="detail-key">申請人</div><div class="detail-val">${r.applicantName}</div></div>
+      <div class="detail-item"><div class="detail-key">借用期間</div><div class="detail-val">${r.dateStart} ～ ${r.dateEnd}</div></div>
+      <div class="detail-item"><div class="detail-key">申請車型代碼</div><div class="detail-val" style="color:var(--accent);font-family:'DM Mono',monospace">${r.vehicleType}</div></div>
+      <div class="detail-item"><div class="detail-key">借用目的</div><div class="detail-val">${r.purpose}</div></div>
+    </div>
+    <div class="divider"></div>
+    <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.05em;font-family:'DM Mono',monospace">配車（從車輛清單選擇）</div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>選擇車輛 <span class="req">*</span></label>
+      <select id="admin-vehicle-select" onchange="fillVehicleCodes(this.value)">
+        <option value="">— 請選擇閒置車輛 —</option>
+        ${vehicles.filter(v => v.status === 'idle' || v.id === r.assignedVehicleId).map(v =>
+          `<option value="${v.id}" ${r.assignedVehicleId === v.id ? 'selected' : ''}>[${v.typeCode}] ${v.plate}</option>`
+        ).join('')}
+      </select>
+    </div>
+    <div id="vehicle-confirm-card" style="display:${r.assignedVehicleId ? 'grid' : 'none'};grid-template-columns:1fr 1fr;gap:8px 20px;background:var(--surface2);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:12px;font-size:12px">
+      <div><span style="color:var(--text3)">車牌：</span><span id="vc-plate" style="font-family:'DM Mono',monospace;color:var(--accent2)">${r.assignedPlate||''}</span></div>
+      <div><span style="color:var(--text3)">車型：</span><span id="vc-type" style="font-family:'DM Mono',monospace">${r.assignedTypeCode||''}</span></div>
+      <div><span style="color:var(--text3)">車身碼：</span><span id="vc-body" style="font-family:'DM Mono',monospace">${r.assignedBodyCode||''}</span></div>
+      <div><span style="color:var(--text3)">馬達碼：</span><span id="vc-motor" style="font-family:'DM Mono',monospace">${r.assignedMotorCode||''}</span></div>
+    </div>
+    <p style="font-size:11px;color:var(--text3);margin-bottom:4px">確認配車資訊無誤後送出，系統將通知主管進行最終核准。</p>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-danger btn-sm" onclick="rejectRecord('${r.id}')">退回申請</button>
+    <button class="btn btn-primary" onclick="adminApprove('${r.id}')">確認配車並通知主管 →</button>
+    <button class="btn btn-outline" onclick="closeModal()">取消</button>
+  </div>`;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function fillVehicleCodes(vid) {
+  const v = vehicles.find(x => x.id === vid);
+  const card = document.getElementById('vehicle-confirm-card');
+  if (v && card) {
+    card.style.display = 'grid';
+    document.getElementById('vc-plate').textContent = v.plate;
+    document.getElementById('vc-type').textContent = v.typeCode;
+    document.getElementById('vc-body').textContent = v.bodyCode;
+    document.getElementById('vc-motor').textContent = v.motorCode;
+  } else if (card) {
+    card.style.display = 'none';
+  }
+}
+
+function adminApprove(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  const vid = document.getElementById('admin-vehicle-select')?.value;
+  if (!vid) { showToast('⚠️ 請從清單選擇車輛'); return; }
+  const v = vehicles.find(x => x.id === vid);
+  if (!v) { showToast('⚠️ 找不到選取的車輛'); return; }
+  // 若之前已配其他車，先釋放
+  if (r.assignedVehicleId && r.assignedVehicleId !== vid) {
+    const old = vehicles.find(x => x.id === r.assignedVehicleId);
+    if (old) { old.status = 'idle'; }
+  }
+  r.assignedVehicleId = vid;
+  r.assignedBodyCode = v.bodyCode;
+  r.assignedMotorCode = v.motorCode;
+  r.assignedPlate = v.plate;
+  r.assignedTypeCode = v.typeCode;
+  v.status = 'in_use';
+  r.status = 'pending_manager';
+  saveVehiclesWithSync(v);
+  saveRecords(r);
+  closeModal();
+  showToast('✅ 已配車完成，通知主管中…');
+  showPage('list');
+}
+
+function rejectRecord(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  const modal = document.getElementById('modal-content');
+  modal.innerHTML = `
+  <div class="modal-header">
+    <div class="modal-title">退回申請確認</div>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+  </div>
+  <div class="modal-body">
+    <p style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:14px">
+      確定退回 <strong style="color:var(--text)">${r.id}</strong> 的借用申請？
+    </p>
+    <div class="form-group">
+      <label>退回原因（選填，將顯示於紀錄）</label>
+      <textarea id="reject-reason" placeholder="例：借用期間車輛已排定維修，請重新選擇日期…" style="min-height:70px"></textarea>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-danger" onclick="confirmReject('${id}')">確認退回</button>
+    <button class="btn btn-outline" onclick="closeModal()">取消</button>
+  </div>`;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function confirmReject(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  const reason = document.getElementById('reject-reason')?.value.trim();
+  const now = new Date();
+  r.status = 'rejected';
+  r.rejectedAt = now.toLocaleDateString('zh-TW') + ' ' + now.toLocaleTimeString('zh-TW', {hour:'2-digit',minute:'2-digit'});
+  r.rejectReason = reason || '';
+  saveRecords(r);
+  closeModal();
+  showToast('已退回申請');
+  showPage('list');
+}
+
+// ── 補件重送 ──
+function openResubmit(id) {
+  const r = records.find(x => x.id === id);
+  if (!r || r.status !== 'rejected') return;
+  const modal = document.getElementById('modal-content');
+  const round = (r.resubmitCount || 0) + 1;
+  modal.innerHTML = `
+  <div class="modal-header">
+    <div>
+      <div class="modal-title">補件重送 — ${r.id}</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:3px">第 ${round} 次重送</div>
+    </div>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+  </div>
+  <div class="modal-body">
+    ${r.rejectReason ? `<div style="background:rgba(255,92,92,0.08);border:1px solid rgba(255,92,92,0.2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--danger)">
+      <strong>退回原因：</strong>${r.rejectReason}
+    </div>` : ''}
+    <div class="form-grid">
+      <div class="form-group">
+        <label>申請人姓名</label>
+        <input id="rs-name" value="${r.applicantName}">
+      </div>
+      <div class="form-group">
+        <label>申請人信箱</label>
+        <input id="rs-email" type="email" value="${r.applicantEmail}">
+      </div>
+      <div class="form-group">
+        <label>預計借用日期 <span class="req">*</span></label>
+        <input id="rs-date-start" type="date" value="${r.dateStart}">
+      </div>
+      <div class="form-group">
+        <label>預計歸還日期 <span class="req">*</span></label>
+        <input id="rs-date-end" type="date" value="${r.dateEnd}">
+      </div>
+      <div class="form-group span2">
+        <label>借用目的 <span class="req">*</span></label>
+        <textarea id="rs-purpose">${r.purpose}</textarea>
+      </div>
+      <div class="form-group">
+        <label>目的地</label>
+        <input id="rs-dest" value="${r.destination || ''}">
+      </div>
+      <div class="form-group">
+        <label>預計里程（km）</label>
+        <input id="rs-km" type="number" value="${r.estKm || ''}">
+      </div>
+      <div class="form-group span2">
+        <label>申請車型代碼 <span class="req">*</span></label>
+        <input id="rs-vtype" value="${r.vehicleType || ''}">
+      </div>
+      <div class="form-group span2">
+        <label>補件說明（說明修改了什麼）</label>
+        <textarea id="rs-note" placeholder="例：已改選其他日期，原日期車輛維修中…" style="min-height:60px"></textarea>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-primary" onclick="submitResubmit('${id}')">重送審核 →</button>
+    <button class="btn btn-outline" onclick="closeModal()">取消</button>
+  </div>`;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function submitResubmit(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  const dateStart = document.getElementById('rs-date-start').value;
+  const dateEnd = document.getElementById('rs-date-end').value;
+  const purpose = document.getElementById('rs-purpose').value.trim();
+  const vtype = document.getElementById('rs-vtype').value.trim();
+  if (!dateStart || !dateEnd || !purpose || !vtype) {
+    showToast('⚠️ 請填寫所有必填欄位');
+    return;
+  }
+  const now = new Date();
+  const round = (r.resubmitCount || 0) + 1;
+  // 保留退回歷史
+  if (!r.resubmitHistory) r.resubmitHistory = [];
+  r.resubmitHistory.push({
+    round,
+    rejectReason: r.rejectReason,
+    resubmitNote: document.getElementById('rs-note').value.trim(),
+    resubmitAt: now.toLocaleDateString('zh-TW') + ' ' + now.toLocaleTimeString('zh-TW', {hour:'2-digit',minute:'2-digit'})
+  });
+  // 更新欄位
+  r.applicantName = document.getElementById('rs-name').value.trim();
+  r.applicantEmail = document.getElementById('rs-email').value.trim();
+  r.dateStart = dateStart;
+  r.dateEnd = dateEnd;
+  r.purpose = purpose;
+  r.destination = document.getElementById('rs-dest').value.trim();
+  r.estKm = document.getElementById('rs-km').value;
+  r.vehicleType = vtype;
+  r.resubmitCount = round;
+  r.rejectReason = '';
+  r.status = 'pending_admin';
+  saveRecords(r);
+  closeModal();
+  showToast(`✅ 已重送審核（第 ${round} 次）`);
+  showPage('list');
+}
+
+// ── Manager approve ──
+function openManagerApprove(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  const modal = document.getElementById('modal-content');
+  modal.innerHTML = `
+  <div class="modal-header">
+    <div class="modal-title">主管核准 — ${r.id}</div>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="detail-grid" style="margin-bottom:16px">
+      <div class="detail-item"><div class="detail-key">申請人</div><div class="detail-val">${r.applicantName}</div></div>
+      <div class="detail-item"><div class="detail-key">借用期間</div><div class="detail-val">${r.dateStart} ～ ${r.dateEnd}</div></div>
+      <div class="detail-item"><div class="detail-key">申請車型代碼</div><div class="detail-val" style="color:var(--accent);font-family:'DM Mono',monospace">${r.vehicleType}</div></div>
+      <div class="detail-item"><div class="detail-key">借用目的</div><div class="detail-val">${r.purpose}</div></div>
+    </div>
+    <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px">
+      <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">行政配車資訊</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div><div style="font-size:11px;color:var(--text2);margin-bottom:2px">車身碼</div><div style="font-family:'DM Mono',monospace;color:var(--accent2)">${r.assignedBodyCode}</div></div>
+        <div><div style="font-size:11px;color:var(--text2);margin-bottom:2px">馬達碼</div><div style="font-family:'DM Mono',monospace;color:var(--accent2)">${r.assignedMotorCode}</div></div>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>主管姓名 <span class="req">*</span></label>
+      <input id="mgr-name" placeholder="請輸入姓名">
+    </div>
+    <div class="form-group">
+      <label>主管電子簽名 <span class="req">*</span></label>
+      <div class="sig-wrap">
+        <canvas id="sig-mgr" style="height:120px"></canvas>
+        <div class="sig-hint" id="sig-mgr-hint">← 請在此處手寫簽名 →</div>
+        <div class="sig-controls">
+          <button class="sig-clear" onclick="sigPads['mgr'].clear()">清除重簽</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-success" onclick="managerApprove('${r.id}')">核准借用 ✓</button>
+    <button class="btn btn-outline" onclick="closeModal()">取消</button>
+  </div>`;
+  document.getElementById('modal-overlay').classList.add('show');
+  setTimeout(() => { sigPads['mgr'] = initSigPad('sig-mgr', 'sig-mgr-hint'); }, 50);
+}
+
+function managerApprove(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  const name = document.getElementById('mgr-name').value.trim();
+  if (!name) { showToast('⚠️ 請輸入主管姓名'); return; }
+  if (sigPads['mgr']?.isEmpty()) { showToast('⚠️ 請簽名後再送出'); return; }
+
+  const now = new Date();
+  r.status = 'approved';
+  r.managerName = name;
+  r.managerSig = sigPads['mgr'].getDataURL();
+  r.approvedAt = now.toLocaleDateString('zh-TW') + ' ' + now.toLocaleTimeString('zh-TW', {hour:'2-digit',minute:'2-digit'});
+  saveRecords(r);
+  closeModal();
+  showToast('✅ 已核准，申請人可出車');
+  showPage('list');
+}
+
+// ── 行政代填出車點檢 ──
+function openAdminCheckout(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  const modal = document.getElementById('modal-content');
+  modal.innerHTML = `
+  <div class="modal-header">
+    <div>
+      <div class="modal-title">代填出車點檢 — ${r.id}</div>
+      <div style="font-size:11px;color:var(--warn);margin-top:3px">⚠️ 行政代為輸入，請確認資料來源正確</div>
+    </div>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+  </div>
+  <div class="modal-body">
+    <div style="background:rgba(255,179,71,0.08);border:1px solid rgba(255,179,71,0.2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--warn)">
+      此畫面供行政人員根據申請人回報的資訊代為輸入，照片請由行政人員以電腦上傳。
+    </div>
+    <div class="form-grid" style="margin-bottom:16px">
+      <div class="form-group">
+        <label>出車里程（km）<span class="req">*</span></label>
+        <input id="adm-out-km" type="number" placeholder="申請人回報的里程數">
+      </div>
+      <div class="form-group">
+        <label>出車電量（%）<span class="req">*</span></label>
+        <input id="adm-out-bat" type="number" min="0" max="100" placeholder="0-100">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>出車照片（申請人 email 提供，桌機上傳）</label>
+      <div class="photo-grid">
+        ${[1,2,3,4].map(i => `<div class="photo-slot" id="adm-out-slot-${i}">
+          <div class="plus">＋</div>
+          <div class="photo-label">照片 ${i}</div>
+          <input type="file" id="adm-out-photo-${i}" accept="image/*" style="display:none">
+        </div>`).join('')}
+      </div>
+      <span style="font-size:10px;color:var(--text3);margin-top:4px">桌機可從檔案選取，不限制即時拍照</span>
+    </div>
+    <div class="form-group">
+      <label>備註（說明代填原因）</label>
+      <input id="adm-out-note" placeholder="例：申請人在外地無法即時操作，已電話確認資料">
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-primary" onclick="submitAdminCheckout('${r.id}')">代填送出 →</button>
+    <button class="btn btn-outline" onclick="closeModal()">取消</button>
+  </div>`;
+  document.getElementById('modal-overlay').classList.add('show');
+  setTimeout(() => {
+    clearPhotoStore('adm-out-photo-');
+    [1,2,3,4].forEach(i => initPhotoSlot(`adm-out-slot-${i}`, `adm-out-photo-${i}`, null));
+  }, 50);
+}
+
+function submitAdminCheckout(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  const km = document.getElementById('adm-out-km').value;
+  const bat = document.getElementById('adm-out-bat').value;
+  if (!km || !bat) { showToast('⚠️ 請填寫里程與電量'); return; }
+  r.outMileage = parseInt(km);
+  r.outBattery = parseInt(bat);
+  r.outPhotos = [1,2,3,4].map(i => getPhotoData(`adm-out-photo-${i}`)).filter(Boolean);
+  r.outByAdmin = true;
+  r.outAdminNote = document.getElementById('adm-out-note').value.trim();
+  saveRecords(r);
+  closeModal();
+  showToast('✅ 出車點檢代填完成');
+  showPage('list');
+}
+
+// ── Checkout (出車點檢) ──
+function openCheckout(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  const modal = document.getElementById('modal-content');
+  modal.innerHTML = `
+  <div class="modal-header">
+    <div class="modal-title">出車點檢 — ${r.id}</div>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="form-grid" style="margin-bottom:16px">
+      <div class="form-group">
+        <label>出車里程（km）<span class="req">*</span></label>
+        <input id="out-km" type="number" placeholder="目前里程數">
+      </div>
+      <div class="form-group">
+        <label>出車電量（%）<span class="req">*</span></label>
+        <input id="out-bat" type="number" min="0" max="100" placeholder="0-100">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>出車照片（最多 4 張）<span style="font-size:10px;color:var(--warn);margin-left:6px">📷 僅限即時拍攝</span></label>
+      <div class="photo-grid">
+        ${[1,2,3,4].map(i => `<div class="photo-slot" id="out-slot-${i}">
+          <div class="plus">＋</div>
+          <div class="photo-label">照片 ${i}</div>
+          <input type="file" id="out-photo-${i}" accept="image/*" capture="environment">
+        </div>`).join('')}
+      </div>
+      <span style="font-size:10px;color:var(--text3);margin-top:4px">手機操作時將直接開啟相機，請於現場拍攝車況</span>
+    </div>
+    <div class="form-group">
+      <label>申請人確認簽名 <span class="req">*</span></label>
+      <div class="sig-wrap">
+        <canvas id="sig-out" style="height:100px"></canvas>
+        <div class="sig-hint" id="sig-out-hint">← 請在此處手寫簽名 →</div>
+        <div class="sig-controls">
+          <button class="sig-clear" onclick="sigPads['out'].clear()">清除重簽</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-primary" onclick="submitCheckout('${r.id}')">確認出車 →</button>
+    <button class="btn btn-outline" onclick="closeModal()">取消</button>
+  </div>`;
+  document.getElementById('modal-overlay').classList.add('show');
+  setTimeout(() => {
+    sigPads['out'] = initSigPad('sig-out', 'sig-out-hint');
+    clearPhotoStore('out-photo-');
+    [1,2,3,4].forEach(i => initPhotoSlot(`out-slot-${i}`, `out-photo-${i}`, 'environment'));
+  }, 50);
+}
+
+function submitCheckout(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  const km = document.getElementById('out-km').value;
+  const bat = document.getElementById('out-bat').value;
+  if (!km || !bat) { showToast('⚠️ 請填寫里程與電量'); return; }
+  if (sigPads['out']?.isEmpty()) { showToast('⚠️ 請簽名確認'); return; }
+
+  r.outMileage = parseInt(km);
+  r.outBattery = parseInt(bat);
+  r.outSig = sigPads['out'].getDataURL();
+  r.outPhotos = [1,2,3,4].map(i => getPhotoData(`out-photo-${i}`)).filter(Boolean);
+  saveRecords(r);
+  closeModal();
+  showToast('✅ 出車點檢完成，祝行駛順利！');
+  showPage('list');
+}
+
+// ── 行政代填回車點檢 ──
+function openAdminReturn(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  const modal = document.getElementById('modal-content');
+  modal.innerHTML = `
+  <div class="modal-header">
+    <div>
+      <div class="modal-title">代填回車點檢 — ${r.id}</div>
+      <div style="font-size:11px;color:var(--warn);margin-top:3px">⚠️ 行政代為輸入，請確認資料來源正確</div>
+    </div>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+  </div>
+  <div class="modal-body">
+    <div style="background:rgba(255,179,71,0.08);border:1px solid rgba(255,179,71,0.2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--warn)">
+      此畫面供行政人員根據申請人回報資訊代為輸入，照片可由桌機上傳。
+    </div>
+    <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--text2)">
+      出車里程：<strong style="color:var(--text)">${r.outMileage} km</strong> ｜ 出車電量：<strong style="color:var(--text)">${r.outBattery} %</strong>
+    </div>
+    <div class="form-grid" style="margin-bottom:16px">
+      <div class="form-group">
+        <label>回車里程（km）<span class="req">*</span></label>
+        <input id="adm-in-km" type="number" placeholder="申請人回報的里程數">
+      </div>
+      <div class="form-group">
+        <label>回車電量（%）<span class="req">*</span></label>
+        <input id="adm-in-bat" type="number" min="0" max="100" placeholder="0-100">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>回車照片（申請人 email 提供，桌機上傳）</label>
+      <div class="photo-grid">
+        ${[1,2,3,4].map(i => `<div class="photo-slot" id="adm-in-slot-${i}">
+          <div class="plus">＋</div>
+          <div class="photo-label">照片 ${i}</div>
+          <input type="file" id="adm-in-photo-${i}" accept="image/*" style="display:none">
+        </div>`).join('')}
+      </div>
+      <span style="font-size:10px;color:var(--text3);margin-top:4px">桌機可從檔案選取，不限制即時拍照</span>
+    </div>
+    <div class="form-group">
+      <label>備註（說明代填原因）</label>
+      <input id="adm-in-note" placeholder="例：申請人已電話確認回車資料，照片由 email 取得">
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-success" onclick="submitAdminReturn('${r.id}')">代填送出 ✓</button>
+    <button class="btn btn-outline" onclick="closeModal()">取消</button>
+  </div>`;
+  document.getElementById('modal-overlay').classList.add('show');
+  setTimeout(() => {
+    clearPhotoStore('adm-in-photo-');
+    [1,2,3,4].forEach(i => initPhotoSlot(`adm-in-slot-${i}`, `adm-in-photo-${i}`, null));
+  }, 50);
+}
+
+function submitAdminReturn(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  const km = document.getElementById('adm-in-km').value;
+  const bat = document.getElementById('adm-in-bat').value;
+  if (!km || !bat) { showToast('⚠️ 請填寫里程與電量'); return; }
+  r.inMileage = parseInt(km);
+  r.inBattery = parseInt(bat);
+  r.inPhotos = [1,2,3,4].map(i => getPhotoData(`adm-in-photo-${i}`)).filter(Boolean);
+  r.inByAdmin = true;
+  r.inAdminNote = document.getElementById('adm-in-note').value.trim();
+  r.status = 'returned';
+  const now = new Date();
+  r.returnedAt = now.toLocaleDateString('zh-TW') + ' ' + now.toLocaleTimeString('zh-TW', {hour:'2-digit',minute:'2-digit'});
+  saveRecords(r);
+  closeModal();
+  showToast('✅ 回車點檢代填完成，可進行結案');
+  showPage('list');
+}
+
+// ── Return (回車) ──
+function openReturn(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+
+  // 如果還沒出車點檢，先做點檢
+  if (!r.outMileage) {
+    openCheckout(id);
+    return;
+  }
+
+  const modal = document.getElementById('modal-content');
+  modal.innerHTML = `
+  <div class="modal-header">
+    <div class="modal-title">回車歸還 — ${r.id}</div>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+  </div>
+  <div class="modal-body">
+    <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;font-size:12px;color:var(--text2)">
+      出車里程：<strong style="color:var(--text)">${r.outMileage} km</strong> ｜ 出車電量：<strong style="color:var(--text)">${r.outBattery} %</strong>
+    </div>
+    <div class="form-grid" style="margin-bottom:16px">
+      <div class="form-group">
+        <label>回車里程（km）<span class="req">*</span></label>
+        <input id="in-km" type="number" placeholder="目前里程數">
+      </div>
+      <div class="form-group">
+        <label>回車電量（%）<span class="req">*</span></label>
+        <input id="in-bat" type="number" min="0" max="100" placeholder="0-100">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>回車照片（最多 4 張）<span style="font-size:10px;color:var(--warn);margin-left:6px">📷 僅限即時拍攝</span></label>
+      <div class="photo-grid">
+        ${[1,2,3,4].map(i => `<div class="photo-slot" id="in-slot-${i}">
+          <div class="plus">＋</div>
+          <div class="photo-label">照片 ${i}</div>
+          <input type="file" id="in-photo-${i}" accept="image/*" capture="environment">
+        </div>`).join('')}
+      </div>
+      <span style="font-size:10px;color:var(--text3);margin-top:4px">手機操作時將直接開啟相機，請於現場拍攝回車車況</span>
+    </div>
+    <div class="form-group">
+      <label>申請人回車確認簽名 <span class="req">*</span></label>
+      <div class="sig-wrap">
+        <canvas id="sig-in" style="height:100px"></canvas>
+        <div class="sig-hint" id="sig-in-hint">← 請在此處手寫簽名 →</div>
+        <div class="sig-controls">
+          <button class="sig-clear" onclick="sigPads['in'].clear()">清除重簽</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-success" onclick="submitReturn('${r.id}')">確認歸還 ✓</button>
+    <button class="btn btn-outline" onclick="closeModal()">取消</button>
+  </div>`;
+  document.getElementById('modal-overlay').classList.add('show');
+  setTimeout(() => {
+    sigPads['in'] = initSigPad('sig-in', 'sig-in-hint');
+    clearPhotoStore('in-photo-');
+    [1,2,3,4].forEach(i => initPhotoSlot(`in-slot-${i}`, `in-photo-${i}`, 'environment'));
+  }, 50);
+}
+
+function submitReturn(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  const km = document.getElementById('in-km').value;
+  const bat = document.getElementById('in-bat').value;
+  if (!km || !bat) { showToast('⚠️ 請填寫里程與電量'); return; }
+  if (sigPads['in']?.isEmpty()) { showToast('⚠️ 請簽名確認'); return; }
+
+  r.inMileage = parseInt(km);
+  r.inBattery = parseInt(bat);
+  r.returnSig = sigPads['in'].getDataURL();
+  r.inPhotos = [1,2,3,4].map(i => getPhotoData(`in-photo-${i}`)).filter(Boolean);
+  r.status = 'returned';
+  const now = new Date();
+  r.returnedAt = now.toLocaleDateString('zh-TW') + ' ' + now.toLocaleTimeString('zh-TW', {hour:'2-digit',minute:'2-digit'});
+  saveRecords(r);
+  closeModal();
+  showToast('✅ 回車完成，待行政人員結案歸檔');
+  showPage('list');
+}
+
+// ── Close record ──
+function closeRecord(id) {
+  // 用 modal 確認取代 confirm()（confirm 在 artifact 沙盒中被攔截）
+  const modal = document.getElementById('modal-content');
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  modal.innerHTML = `
+  <div class="modal-header">
+    <div class="modal-title">確認結案歸檔</div>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+  </div>
+  <div class="modal-body">
+    <p style="font-size:13px;color:var(--text2);line-height:1.8">
+      確定將 <strong style="color:var(--text)">${r.id}</strong> 結案歸檔？<br>
+      結案後狀態將鎖定為「已結案」，無法再修改。
+    </p>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-success" onclick="confirmClose('${id}')">確認結案 ✓</button>
+    <button class="btn btn-outline" onclick="closeModal()">取消</button>
+  </div>`;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function confirmClose(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  const now = new Date();
+  r.status = 'closed';
+  r.closedAt = now.toLocaleDateString('zh-TW') + ' ' + now.toLocaleTimeString('zh-TW', {hour:'2-digit',minute:'2-digit'});
+  // 釋放車輛
+  if (r.assignedVehicleId) {
+    const v = vehicles.find(x => x.id === r.assignedVehicleId);
+    if (v) { v.status = 'idle'; saveVehiclesWithSync(v); }
+  }
+  saveRecords(r);
+  closeModal();
+  // 結案後自動開啟 PDF 預覽
+  showToast('✅ 已結案，正在產生 PDF…');
+  showPage('list');
+  setTimeout(() => openPDF(id), 600);
+}
+
+// ── 車輛管理頁面 ──
+function renderVehicles() {
+  const statusLabel = { idle:'閒置', in_use:'借出中', maintenance:'維修中' };
+  const statusCls = { idle:'status-approved', in_use:'status-active', maintenance:'status-pending' };
+  return `
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+    <div style="font-size:13px;color:var(--text2)">共 ${vehicles.length} 輛車</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-outline btn-sm" onclick="downloadCSVTemplate()">⬇ 下載 CSV 範本</button>
+      <label class="btn btn-outline btn-sm" style="cursor:pointer">
+        ⬆ 匯入 CSV
+        <input type="file" accept=".csv" style="display:none" onchange="importCSV(this)">
+      </label>
+      <button class="btn btn-primary btn-sm" onclick="openVehicleForm(null)">＋ 新增車輛</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>車型代碼</th><th>車牌</th><th>車身碼</th><th>馬達碼</th><th>狀態</th><th>借用歷史</th><th>操作</th>
+      </tr></thead>
+      <tbody>
+        ${vehicles.map(v => {
+          const hist = records.filter(r => r.assignedVehicleId === v.id);
+          return `<tr>
+            <td class="mono">${v.typeCode}</td>
+            <td style="font-weight:500">${v.plate}</td>
+            <td class="mono">${v.bodyCode}</td>
+            <td class="mono">${v.motorCode}</td>
+            <td><span class="status ${statusCls[v.status]}">${statusLabel[v.status]}</span></td>
+            <td style="font-size:12px;color:var(--text2)">${hist.length} 筆</td>
+            <td style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn btn-outline btn-sm" onclick="openVehicleForm('${v.id}')">編輯</button>
+              <button class="btn btn-outline btn-sm" onclick="openVehicleHistory('${v.id}')">歷史</button>
+              ${v.status === 'idle' ? `<button class="btn btn-outline btn-sm" style="color:var(--warn);border-color:var(--warn)" onclick="setVehicleStatus('${v.id}','maintenance')">送修</button>` : ''}
+              ${v.status === 'maintenance' ? `<button class="btn btn-success btn-sm" onclick="setVehicleStatus('${v.id}','idle')">完修</button>` : ''}
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>
+  </div>`;
+}
+
+function openVehicleForm(vid) {
+  const v = vid ? vehicles.find(x => x.id === vid) : null;
+  const modal = document.getElementById('modal-content');
+  modal.innerHTML = `
+  <div class="modal-header">
+    <div class="modal-title">${v ? '編輯車輛' : '新增車輛'}</div>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>車型代碼 <span class="req">*</span></label>
+        <input id="vf-type" placeholder="例：EV-T01" value="${v?.typeCode||''}">
+      </div>
+      <div class="form-group">
+        <label>車牌號碼 <span class="req">*</span></label>
+        <input id="vf-plate" placeholder="例：ABC-1234" value="${v?.plate||''}">
+      </div>
+      <div class="form-group">
+        <label>車身碼 <span class="req">*</span></label>
+        <input id="vf-body" placeholder="例：BODY-2024-001" value="${v?.bodyCode||''}">
+      </div>
+      <div class="form-group">
+        <label>馬達碼 <span class="req">*</span></label>
+        <input id="vf-motor" placeholder="例：MTR-2024-001" value="${v?.motorCode||''}">
+      </div>
+      <div class="form-group span2">
+        <label>備註</label>
+        <input id="vf-note" placeholder="選填" value="${v?.note||''}">
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    ${v ? `<button class="btn btn-danger btn-sm" onclick="deleteVehicle('${v.id}')">刪除</button>` : ''}
+    <button class="btn btn-primary" onclick="saveVehicleForm('${vid||''}')">儲存</button>
+    <button class="btn btn-outline" onclick="closeModal()">取消</button>
+  </div>`;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function saveVehicleForm(vid) {
+  const typeCode = document.getElementById('vf-type').value.trim();
+  const plate = document.getElementById('vf-plate').value.trim();
+  const bodyCode = document.getElementById('vf-body').value.trim();
+  const motorCode = document.getElementById('vf-motor').value.trim();
+  if (!typeCode||!plate||!bodyCode||!motorCode) { showToast('⚠️ 請填寫所有必填欄位'); return; }
+  if (vid) {
+    const v = vehicles.find(x => x.id === vid);
+    if (v) { v.typeCode=typeCode; v.plate=plate; v.bodyCode=bodyCode; v.motorCode=motorCode; v.note=document.getElementById('vf-note').value.trim(); }
+  } else {
+    vehicles.push({ id:'V'+String(Date.now()).slice(-4), typeCode, plate, bodyCode, motorCode, status:'idle', note:document.getElementById('vf-note').value.trim() });
+  }
+  const updatedV = vid ? vehicles.find(x => x.id === vid) : vehicles[vehicles.length-1];
+  saveVehiclesWithSync(updatedV);
+  closeModal();
+  showToast('✅ 車輛資料已儲存');
+  showPage('vehicles');
+}
+
+function deleteVehicle(vid) {
+  const v = vehicles.find(x => x.id === vid);
+  if (!v || v.status === 'in_use') { showToast('⚠️ 借出中的車輛無法刪除'); return; }
+  const delV = { id: vid };
+  vehicles = vehicles.filter(x => x.id !== vid);
+  localStorage.setItem('vl_vehicles', JSON.stringify(vehicles));
+  if (SHEETS_API_URL) sheetsDelete('vehicles', delV);
+  closeModal();
+  showToast('已刪除車輛');
+  showPage('vehicles');
+}
+
+function setVehicleStatus(vid, status) {
+  const v = vehicles.find(x => x.id === vid);
+  if (v) { v.status = status; saveVehiclesWithSync(v); showPage('vehicles'); }
+}
+
+function openVehicleHistory(vid) {
+  const v = vehicles.find(x => x.id === vid);
+  if (!v) return;
+  const hist = records.filter(r => r.assignedVehicleId === vid);
+  const modal = document.getElementById('modal-content');
+  modal.innerHTML = `
+  <div class="modal-header">
+    <div>
+      <div class="modal-title">借用歷史 — ${v.plate}</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:2px">${v.typeCode} ｜ ${v.bodyCode}</div>
+    </div>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+  </div>
+  <div class="modal-body">
+    ${hist.length === 0 ? '<p style="color:var(--text3);text-align:center;padding:24px">尚無借用紀錄</p>' : `
+    <div class="table-wrap"><table>
+      <thead><tr><th>案號</th><th>申請人</th><th>借用期間</th><th>狀態</th></tr></thead>
+      <tbody>
+        ${hist.map(r => `<tr>
+          <td class="mono">${r.id}</td>
+          <td>${r.applicantName}</td>
+          <td class="mono" style="white-space:nowrap;font-size:11px">${r.dateStart}～${r.dateEnd}</td>
+          <td><span class="status ${statusMap[r.status]?.cls}">${statusMap[r.status]?.label}</span></td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`}
+  </div>
+  <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">關閉</button></div>`;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+// ── PDF 產製（Modal 內嵌，避免 window.open 沙盒限制）──
+function openPDF(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+
+  const usedKm = (r.inMileage && r.outMileage) ? (r.inMileage - r.outMileage) : '—';
+  const efficiency = (r.inMileage && r.outMileage && r.inMileage > r.outMileage)
+    ? ((r.outBattery - r.inBattery) / (r.inMileage - r.outMileage) * 100).toFixed(2) + ' %/100km'
+    : '—';
+
+  const photoRow = (photos, label) => {
+    if (!photos || photos.length === 0)
+      return `<div style="color:#999;font-size:11px;padding:6px 0">${label}：未上傳照片</div>`;
+    return `<div style="font-size:10px;color:#666;margin:8px 0 5px;font-weight:600">${label}</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+        ${photos.map(src => `<div style="aspect-ratio:4/3;overflow:hidden;border-radius:4px;border:1px solid #ddd"><img src="${src}" style="width:100%;height:100%;object-fit:cover"></div>`).join('')}
+      </div>`;
+  };
+
+  const sigImg = (src, label) => `<div style="flex:1">
+    <div style="font-size:10px;color:#888;margin-bottom:4px">${label}</div>
+    ${src ? `<img src="${src}" style="height:48px;max-width:180px;display:block">` : '<div style="height:48px;width:180px"></div>'}
+    <div style="border-bottom:1px solid #333;width:180px;margin-top:2px"></div>
+  </div>`;
+
+  const pdfHTML = `
+  <div id="pdf-print-area" style="font-family:sans-serif;font-size:12px;color:#1a1a1a;line-height:1.6;max-width:720px;margin:0 auto">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #1a1a1a">
+      <div>
+        <div style="font-size:18px;font-weight:700;margin-bottom:2px">車輛借用憑證</div>
+        <div style="font-size:10px;color:#666;font-family:monospace">${r.id} ｜ 產製：${new Date().toLocaleString('zh-TW')}</div>
+      </div>
+      <div style="font-size:11px;color:#888;text-align:right">${r.status === 'closed' ? '✓ 已結案' : '草稿'}</div>
+    </div>
+
+    <div style="background:#f5f7ff;border-radius:6px;padding:12px 16px;margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#555;margin-bottom:8px">基本資訊</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 20px">
+        <div><span style="color:#888;font-size:10px">申請人：</span>${r.applicantName}</div>
+        <div><span style="color:#888;font-size:10px">信箱：</span>${r.applicantEmail}</div>
+        <div><span style="color:#888;font-size:10px">借用日期：</span>${r.dateStart}</div>
+        <div><span style="color:#888;font-size:10px">歸還日期：</span>${r.dateEnd}</div>
+        <div style="grid-column:span 2"><span style="color:#888;font-size:10px">目的：</span>${r.purpose}</div>
+        ${r.destination ? `<div><span style="color:#888;font-size:10px">目的地：</span>${r.destination}</div>` : ''}
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#555;border-bottom:1px solid #e0e0e0;padding-bottom:4px;margin-bottom:8px">配車資訊</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+        <div><div style="font-size:10px;color:#888">申請車型</div><div style="font-family:monospace">${r.vehicleType||'—'}</div></div>
+        <div><div style="font-size:10px;color:#888">實配車牌</div><div style="font-family:monospace">${r.assignedPlate||'—'}</div></div>
+        <div><div style="font-size:10px;color:#888">車身碼</div><div style="font-family:monospace">${r.assignedBodyCode||'—'}</div></div>
+        <div><div style="font-size:10px;color:#888">馬達碼</div><div style="font-family:monospace">${r.assignedMotorCode||'—'}</div></div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#555;border-bottom:1px solid #e0e0e0;padding-bottom:4px;margin-bottom:8px">里程與電量對照</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+        <div><div style="font-size:10px;color:#888">出車里程</div><div>${r.outMileage||'—'} km</div></div>
+        <div><div style="font-size:10px;color:#888">回車里程</div><div>${r.inMileage||'—'} km</div></div>
+        <div><div style="font-size:10px;color:#888">使用里程</div><div style="font-weight:600">${usedKm} km</div></div>
+        <div><div style="font-size:10px;color:#888">能耗效率</div><div>${efficiency}</div></div>
+        <div><div style="font-size:10px;color:#888">出車電量</div><div>${r.outBattery||'—'} %</div></div>
+        <div><div style="font-size:10px;color:#888">回車電量</div><div>${r.inBattery||'—'} %</div></div>
+        <div><div style="font-size:10px;color:#888">電量消耗</div><div>${(r.outBattery&&r.inBattery) ? (r.outBattery - r.inBattery)+' %' : '—'}</div></div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#555;border-bottom:1px solid #e0e0e0;padding-bottom:4px;margin-bottom:8px">車況照片對照</div>
+      ${photoRow(r.outPhotos, '出車照片')}
+      <div style="margin-top:10px"></div>
+      ${photoRow(r.inPhotos, '回車照片')}
+    </div>
+
+    <div style="margin-bottom:8px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#555;border-bottom:1px solid #e0e0e0;padding-bottom:4px;margin-bottom:8px">簽核軌跡</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 20px;margin-bottom:12px;font-size:11px">
+        <div><span style="color:#888">申請時間：</span>${r.createdAt}</div>
+        <div><span style="color:#888">主管核准：</span>${r.approvedAt||'—'}</div>
+        <div><span style="color:#888">歸還時間：</span>${r.returnedAt||'—'}</div>
+        <div><span style="color:#888">結案時間：</span>${r.closedAt||'—'}</div>
+        ${r.managerName ? `<div><span style="color:#888">審核主管：</span>${r.managerName}</div>` : ''}
+      </div>
+      <div style="display:flex;gap:40px;margin-top:16px">
+        ${sigImg(r.applySig, '申請人簽名')}
+        ${sigImg(r.managerSig, '主管簽名')}
+      </div>
+    </div>
+  </div>`;
+
+  // 用全螢幕 modal 顯示，搭配列印樣式
+  const overlay = document.getElementById('modal-overlay');
+  const modal = document.getElementById('modal-content');
+  modal.style.maxWidth = '820px';
+  modal.style.width = '95vw';
+  modal.innerHTML = `
+  <div class="modal-header" style="position:sticky;top:0;z-index:10;background:var(--surface)">
+    <div class="modal-title">借用憑證 — ${r.id}</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-primary btn-sm" onclick="printPDF()">🖨 列印 / 存 PDF</button>
+      <button class="modal-close" onclick="closeModal();document.getElementById('modal-content').style.maxWidth=''">✕</button>
+    </div>
+  </div>
+  <div class="modal-body" style="background:#fff;color:#1a1a1a" id="pdf-modal-body">
+    ${pdfHTML}
+  </div>`;
+  overlay.classList.add('show');
+}
+
+function printPDF() {
+  const body = document.getElementById('pdf-modal-body');
+  if (!body) return;
+  const orig = document.body.innerHTML;
+  document.body.innerHTML = body.innerHTML;
+  window.print();
+  document.body.innerHTML = orig;
+  // 重新初始化
+  location.reload();
+}
+
+
+// ── Role switcher ──
+function switchRole(role) {
+  currentRole = role;
+  document.getElementById('role-label').textContent = roleLabels[role];
+  // refresh current page
+  const active = document.querySelector('.nav-item.active');
+  const pageMap = ['dashboard','apply','list'];
+  const idx = [...document.querySelectorAll('.nav-item')].indexOf(active);
+  showPage(pageMap[idx] || 'dashboard');
+}
+
+// ── Toast ──
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── Init ──
+records = loadRecords();
+showPage('dashboard');
+// 啟動時從 Sheets 同步（非同步，不阻塞 UI）
+if (SHEETS_API_URL) {
+  document.getElementById('sync-indicator').style.display = 'inline';
+  syncFromSheets().then(() => showPage(
+    document.querySelector('.nav-item.active')?.textContent.trim().includes('總覽') ? 'dashboard' :
+    document.querySelector('.nav-item.active')?.textContent.trim().includes('借用') ? 'list' : 'dashboard'
+  ));
+}
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+</script>
+</body>
+</html>
