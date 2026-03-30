@@ -502,12 +502,8 @@
       </button>
     </nav>
     <div class="role-switcher">
-      <label>🎭 模擬角色（Demo 用）</label>
-      <select id="role-select" onchange="switchRole(this.value)">
-        <option value="admin">行政人員（你）</option>
-        <option value="applicant">申請人</option>
-        <option value="manager">審核主管</option>
-      </select>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px" id="login-email-display"></div>
+      <button class="btn btn-outline btn-sm" style="width:100%;font-size:12px" onclick="logout()">登出</button>
     </div>
   </aside>
 
@@ -516,10 +512,28 @@
     <div class="topbar">
       <h1 id="page-title">總覽</h1>
       <span id="sync-indicator" style="display:none">已同步</span>
-    <span class="role-badge" id="role-label">行政人員</span>
+    <span class="role-badge" id="role-label" style="margin-left:auto">申請人</span>
     </div>
     <div class="content" id="content"></div>
   </main>
+</div>
+
+<!-- 登入畫面 -->
+<div id="login-overlay" style="position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:36px 32px;width:100%;max-width:400px;">
+    <div style="margin-bottom:24px">
+      <div style="font-size:11px;letter-spacing:0.15em;color:var(--text3);text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:6px">Fleet Management</div>
+      <div style="font-size:22px;font-weight:700;margin-bottom:6px">車輛借用系統</div>
+      <div style="font-size:12px;color:var(--text2)">請輸入您的公司信箱以繼續</div>
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>公司信箱 <span class="req">*</span></label>
+      <input id="login-email" type="email" placeholder="yourname@company.com" onkeydown="if(event.key==='Enter') doLogin()">
+    </div>
+    <div id="login-error" style="font-size:12px;color:var(--danger);margin-bottom:12px;display:none">請輸入有效的信箱格式。</div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doLogin()">進入系統 →</button>
+    <div style="margin-top:16px;font-size:11px;color:var(--text3);text-align:center">行政或主管請輸入公司信箱以取得對應權限<br>一般申請人同樣輸入信箱即可進入</div>
+  </div>
 </div>
 
 <!-- Toast -->
@@ -542,6 +556,23 @@ const EMAILJS_TEMPLATE_REJECT   = '';
 const EMAILJS_TEMPLATE_RETURNED = '';
 const EMAILJS_PUBLIC_KEY  = '';
 const SYSTEM_URL = window.location.href; // 部署後自動抓取網址
+
+// ══════════════════════════════════════════
+// ── 角色白名單（只需設定行政和主管）──
+// ── 其他信箱一律視為申請人             ──
+// ══════════════════════════════════════════
+const ROLE_WHITELIST = {
+  // 行政人員：可審核申請、配車、代填點檢、結案
+  admin: [
+    'jochinccy@dchmotors.com.tw',       // 替換成實際行政信箱
+    'jo@yourcompany.com',          // 可加多個行政帳號
+  ],
+  // 審核主管：可核准借用申請
+  manager: [
+    'wangchc@triangletaiwan.com',     // 替換成實際主管信箱
+    'vp@yourcompany.com',          // 可加多個主管帳號
+  ],
+};
 
 // ══════════════════════════════════════════
 // ── Google Sheets API 函數 ──
@@ -1045,6 +1076,13 @@ function renderApply() {
 
 function initApplyPage() {
   sigPads['apply'] = initSigPad('sig-apply', 'sig-apply-hint');
+  // 自動帶入登入信箱
+  const savedEmail = sessionStorage.getItem('vl_login_email');
+  if (savedEmail) {
+    const emailEl = document.getElementById('f-email');
+    const nameEl  = document.getElementById('f-name');
+    if (emailEl) emailEl.value = savedEmail;
+  }
 }
 
 function submitApply() {
@@ -2206,15 +2244,42 @@ function printPDF() {
 }
 
 
-// ── Role switcher ──
-function switchRole(role) {
+// ── 登入 / 登出 ──
+function doLogin() {
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  const errEl = document.getElementById('login-error');
+  if (!email || !email.includes('@')) { errEl.style.display = 'block'; return; }
+  errEl.style.display = 'none';
+  let role = 'applicant';
+  if (ROLE_WHITELIST.admin.map(e => e.toLowerCase()).includes(email)) role = 'admin';
+  else if (ROLE_WHITELIST.manager.map(e => e.toLowerCase()).includes(email)) role = 'manager';
+  sessionStorage.setItem('vl_login_email', email);
+  sessionStorage.setItem('vl_login_role', role);
+  applyLogin(email, role);
+}
+
+function applyLogin(email, role) {
   currentRole = role;
   document.getElementById('role-label').textContent = roleLabels[role];
-  // refresh current page
-  const active = document.querySelector('.nav-item.active');
-  const pageMap = ['dashboard','apply','list'];
-  const idx = [...document.querySelectorAll('.nav-item')].indexOf(active);
-  showPage(pageMap[idx] || 'dashboard');
+  document.getElementById('login-email-display').textContent = email;
+  // 申請人隱藏「車輛管理」
+  document.querySelectorAll('.nav-item').forEach(el => {
+    if (el.textContent.includes('車輛管理')) el.style.display = (role === 'admin') ? '' : 'none';
+  });
+  document.getElementById('login-overlay').style.display = 'none';
+  showPage('dashboard');
+  if (SHEETS_API_URL) {
+    document.getElementById('sync-indicator').style.display = 'inline';
+    syncFromSheets().then(() => showPage('dashboard'));
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('vl_login_email');
+  sessionStorage.removeItem('vl_login_role');
+  currentRole = 'applicant';
+  document.getElementById('login-overlay').style.display = 'flex';
+  document.getElementById('login-email').value = '';
 }
 
 // ── Toast ──
@@ -2227,14 +2292,14 @@ function showToast(msg) {
 
 // ── Init ──
 records = loadRecords();
-showPage('dashboard');
-// 啟動時從 Sheets 同步（非同步，不阻塞 UI）
-if (SHEETS_API_URL) {
-  document.getElementById('sync-indicator').style.display = 'inline';
-  syncFromSheets().then(() => showPage(
-    document.querySelector('.nav-item.active')?.textContent.trim().includes('總覽') ? 'dashboard' :
-    document.querySelector('.nav-item.active')?.textContent.trim().includes('借用') ? 'list' : 'dashboard'
-  ));
+// 檢查 sessionStorage 是否有登入紀錄
+const _savedEmail = sessionStorage.getItem('vl_login_email');
+const _savedRole  = sessionStorage.getItem('vl_login_role');
+if (_savedEmail && _savedRole) {
+  applyLogin(_savedEmail, _savedRole);
+} else {
+  // 顯示登入畫面（預設已顯示，不需額外動作）
+  showPage('dashboard'); // 預載背景
 }
 document.getElementById('modal-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-overlay')) closeModal();
