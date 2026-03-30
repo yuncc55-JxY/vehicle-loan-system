@@ -2266,11 +2266,14 @@ function applyLogin(email, role) {
   document.querySelectorAll('.nav-item').forEach(el => {
     if (el.textContent.includes('車輛管理')) el.style.display = (role === 'admin') ? '' : 'none';
   });
+  // 先顯示主介面，再隱藏登入畫面
+  document.querySelector('.app').style.display = 'flex';
   document.getElementById('login-overlay').style.display = 'none';
   showPage('dashboard');
   if (SHEETS_API_URL) {
     document.getElementById('sync-indicator').style.display = 'inline';
-    syncFromSheets().then(() => showPage('dashboard'));
+    // 同步完成後只更新資料，不再呼叫 showPage 避免 UI 閃動
+    syncFromSheets();
   }
 }
 
@@ -2292,15 +2295,18 @@ function showToast(msg) {
 
 // ── Init ──
 records = loadRecords();
+
+// 強制隱藏主介面，確保登入畫面優先顯示
+document.querySelector('.app').style.display = 'none';
+document.getElementById('login-overlay').style.display = 'flex';
+
 // 檢查 sessionStorage 是否有登入紀錄
 const _savedEmail = sessionStorage.getItem('vl_login_email');
 const _savedRole  = sessionStorage.getItem('vl_login_role');
 if (_savedEmail && _savedRole) {
   applyLogin(_savedEmail, _savedRole);
-} else {
-  // 顯示登入畫面（預設已顯示，不需額外動作）
-  showPage('dashboard'); // 預載背景
 }
+// else：維持登入畫面顯示，等使用者輸入信箱
 document.getElementById('modal-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-overlay')) closeModal();
 });
